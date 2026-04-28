@@ -42,7 +42,7 @@ export default function AdminConfiguracionPage() {
             if (!loadedConfigs.find(c => c.clave === 'email_notificaciones')) {
                 loadedConfigs.push({
                     clave: 'email_notificaciones',
-                    valor: 'alexis298930@gmail.com',
+                    valor: 'alexis298930@gmail.com, daniela92medina@hotmail.com',
                     descripcion: 'Correos que recibirán alertas de nuevos leads'
                 })
             }

@@ -11,13 +11,12 @@ interface ProjectSlotUploaderProps {
     onUploadComplete: () => void
 }
 
+/** Máximo 4 fotos por proyecto — alineado con la restricción del API */
 const SLOTS = [
     { key: 'general', label: '📸 Foto General (Portada)' },
     { key: 'antes', label: '🏗️ Antes' },
     { key: 'durante', label: '🚧 Durante' },
-    { key: 'finalizando', label: '✅ Finalizando' },
-    { key: 'extra_1', label: '➕ Extra 1' },
-    { key: 'extra_2', label: '➕ Extra 2' }
+    { key: 'despues', label: '✅ Después' },
 ]
 
 export default function ProjectSlotUploader({ proyectoId, currentImages, onUploadComplete }: ProjectSlotUploaderProps) {

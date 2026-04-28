@@ -43,8 +43,7 @@ export async function fetchProyectos(): Promise<ProyectoPublico[]> {
             solucion: String(p.solucion || ''),
             metricas: Array.isArray(p.metricas) ? p.metricas : [],
             imagenes_estructuradas: (p.imagenes_estructuradas as Record<string, string | null>) || {
-                general: null, antes: null, durante: null,
-                finalizando: null, extra_1: null, extra_2: null
+                general: null, antes: null, durante: null, despues: null
             },
             destacado: Boolean(p.destacado),
             publicado: Boolean(p.publicado),
@@ -54,7 +53,7 @@ export async function fetchProyectos(): Promise<ProyectoPublico[]> {
             ...p,
             imagenes_estructuradas: {
                 general: p.imagenes[0]?.url_publica || null,
-                antes: null, durante: null, finalizando: null, extra_1: null, extra_2: null
+                antes: null, durante: null, despues: null
             },
             publicado: true,
         }))
@@ -86,8 +85,7 @@ export async function fetchProyectoBySlug(slug: string): Promise<ProyectoPublico
             solucion: String(p.solucion || ''),
             metricas: Array.isArray(p.metricas) ? p.metricas : [],
             imagenes_estructuradas: (p.imagenes_estructuradas as Record<string, string | null>) || {
-                general: null, antes: null, durante: null,
-                finalizando: null, extra_1: null, extra_2: null
+                general: null, antes: null, durante: null, despues: null
             },
             destacado: Boolean(p.destacado),
             publicado: Boolean(p.publicado),
@@ -99,7 +97,7 @@ export async function fetchProyectoBySlug(slug: string): Promise<ProyectoPublico
             ...staticProject,
             imagenes_estructuradas: {
                 general: staticProject.imagenes[0]?.url_publica || null,
-                antes: null, durante: null, finalizando: null, extra_1: null, extra_2: null
+                antes: null, durante: null, despues: null
             },
             publicado: true,
         }

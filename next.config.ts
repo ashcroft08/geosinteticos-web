@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
+    /* Formatos que Next/Image usará al servir imágenes optimizadas */
+    formats: ["image/webp"],
     remotePatterns: [
       {
         protocol: "https",

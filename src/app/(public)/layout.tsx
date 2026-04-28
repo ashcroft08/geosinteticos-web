@@ -1,6 +1,7 @@
 import Header from '@/components/public/Header'
 import Footer from '@/components/public/Footer'
 import WhatsAppFloat from '@/components/public/WhatsAppFloat'
+import PageViewTracker from '@/components/public/PageViewTracker'
 import { fetchContactoInfo } from '@/lib/data/configuracion'
 
 export default async function PublicLayout({
@@ -16,6 +17,7 @@ export default async function PublicLayout({
             <main className="min-h-screen">{children}</main>
             <Footer />
             <WhatsAppFloat numero={contacto.whatsapp} />
+            <PageViewTracker />
         </>
     )
 }

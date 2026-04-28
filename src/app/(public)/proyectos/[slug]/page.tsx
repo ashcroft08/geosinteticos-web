@@ -14,10 +14,43 @@ interface Props {
 export async function generateMetadata({ params }: Props) {
     const { slug } = await params
     const proyecto = await fetchProyectoBySlug(slug)
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://geosinteticos.com.ec'
+
     if (!proyecto) return { title: 'Proyecto no encontrado' }
+
+    const imagenPrincipal =
+        proyecto.imagenes_estructuradas?.general ||
+        proyecto.imagenes_estructuradas?.antes ||
+        proyecto.imagenes_estructuradas?.durante ||
+        `${siteUrl}/Logo.png`
+
+    const descripcion = proyecto.reto || `${proyecto.titulo} — Proyecto ejecutado por G&G Geosintéticos`
+
     return {
-        title: `${proyecto.titulo} | GeoSintéticos Industrial`,
-        description: proyecto.reto,
+        title: `${proyecto.titulo} | G&G Geosintéticos`,
+        description: descripcion,
+        openGraph: {
+            title: proyecto.titulo,
+            description: descripcion,
+            url: `${siteUrl}/proyectos/${slug}`,
+            siteName: 'G&G Geosintéticos',
+            type: 'article',
+            locale: 'es_EC',
+            images: [
+                {
+                    url: imagenPrincipal,
+                    width: 1200,
+                    height: 630,
+                    alt: proyecto.titulo,
+                },
+            ],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: proyecto.titulo,
+            description: descripcion,
+            images: [imagenPrincipal],
+        },
     }
 }
 
@@ -52,6 +85,7 @@ export default async function ProyectoPage({ params }: Props) {
                         src={imagenPrincipal}
                         alt={proyecto.titulo}
                         fill
+                        sizes="100vw"
                         className="object-cover"
                         priority
                     />

@@ -236,6 +236,48 @@ export default function AdminCategoriasPage() {
         await loadData()
     }
 
+    const [selectedIds, setSelectedIds] = useState<string[]>([])
+
+    const deleteSelectedCats = async () => {
+        if (selectedIds.length === 0) return
+        
+        // Verificar cuántas subcategorías se verán afectadas
+        const affectedSubs = subcategorias.filter(s => selectedIds.includes(s.categoria_id)).length
+        const msg = affectedSubs > 0 
+            ? `Estás a punto de eliminar ${selectedIds.length} categorías y sus ${affectedSubs} subcategorías asociadas. ¿Deseas continuar?`
+            : `¿Estás seguro de eliminar las ${selectedIds.length} categorías seleccionadas?`
+
+        const confirmed = await confirmAction(msg)
+        if (!confirmed) return
+
+        const supabase = createSupabaseClient()
+        const { error } = await (supabase.from('categorias') as any).delete().in('id', selectedIds)
+        
+        if (error) {
+            showToast('Error al eliminar las categorías', 'error')
+        } else {
+            showToast(`${selectedIds.length} categorías eliminadas`, 'success')
+            setSelectedIds([])
+            await loadData()
+        }
+    }
+
+    const toggleSelectAll = () => {
+        if (selectedIds.length === categorias.length) {
+            setSelectedIds([])
+        } else {
+            setSelectedIds(categorias.map(c => c.id))
+        }
+    }
+
+    const toggleSelect = (id: string) => {
+        if (selectedIds.includes(id)) {
+            setSelectedIds(selectedIds.filter(selectedId => selectedId !== id))
+        } else {
+            setSelectedIds([...selectedIds, id])
+        }
+    }
+
     /* ── Render ── */
     if (loading) {
         return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-accent border-t-transparent rounded-full" /></div>
@@ -244,17 +286,41 @@ export default function AdminCategoriasPage() {
     return (
         <div className="space-y-6">
             {/* Toolbar */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                 <div>
                     <h2 className="text-lg font-bold text-primary">Categorías y Subcategorías</h2>
                     <p className="text-sm text-text-muted">Organiza tus productos por categorías</p>
                 </div>
-                <button
-                    onClick={() => { resetCatForm(); setShowCatForm(true) }}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-accent text-white font-semibold rounded-xl hover:bg-accent-dark transition-all"
-                >
-                    <Plus size={18} /> Nueva Categoría
-                </button>
+                
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                    {categorias.length > 0 && (
+                        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer mr-2">
+                            <input 
+                                type="checkbox" 
+                                checked={categorias.length > 0 && selectedIds.length === categorias.length}
+                                onChange={toggleSelectAll}
+                                className="w-4 h-4 text-accent border-gray-300 rounded focus:ring-accent"
+                            />
+                            Seleccionar todas
+                        </label>
+                    )}
+                    
+                    {selectedIds.length > 0 && (
+                        <button 
+                            onClick={deleteSelectedCats}
+                            className="px-4 py-2 bg-red-50 text-red-600 font-semibold text-sm rounded-lg hover:bg-red-100 transition-colors border border-red-100"
+                        >
+                            Eliminar ({selectedIds.length})
+                        </button>
+                    )}
+                    
+                    <button
+                        onClick={() => { resetCatForm(); setShowCatForm(true) }}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-accent text-white font-semibold rounded-xl hover:bg-accent-dark transition-all"
+                    >
+                        <Plus size={18} /> Nueva Categoría
+                    </button>
+                </div>
             </div>
 
             {/* Form: Categoría */}
@@ -371,7 +437,15 @@ export default function AdminCategoriasPage() {
                         return (
                             <div key={cat.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                                 {/* Categoría Header */}
-                                <div className="flex items-center gap-3 px-5 py-4">
+                                <div className={`flex items-center gap-3 px-5 py-4 transition-colors ${selectedIds.includes(cat.id) ? 'bg-accent/5' : ''}`}>
+                                    {/* Checkbox */}
+                                    <input 
+                                        type="checkbox" 
+                                        checked={selectedIds.includes(cat.id)}
+                                        onChange={() => toggleSelect(cat.id)}
+                                        className="w-4 h-4 text-accent border-gray-300 rounded focus:ring-accent cursor-pointer"
+                                    />
+
                                     {/* Expand toggle */}
                                     <button
                                         onClick={() => setExpandedCat(isExpanded ? null : cat.id)}
@@ -381,9 +455,9 @@ export default function AdminCategoriasPage() {
                                     </button>
 
                                     {/* Info */}
-                                    <div className="flex-1 min-w-0">
+                                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedCat(isExpanded ? null : cat.id)}>
                                         <div className="flex items-center gap-2">
-                                            <p className="font-semibold text-primary">{cat.nombre}</p>
+                                            <p className={`font-semibold ${selectedIds.includes(cat.id) ? 'text-accent' : 'text-primary'}`}>{cat.nombre}</p>
                                             <span className="text-xs text-text-muted bg-surface px-2 py-0.5 rounded-full">
                                                 {catSubs.length} sub{catSubs.length !== 1 ? 's' : ''}
                                             </span>

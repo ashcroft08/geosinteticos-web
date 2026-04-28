@@ -24,7 +24,8 @@ export interface EmpresaInfo {
 /** Lee un valor de configuracion_sitio por clave, con fallback */
 export async function fetchConfigValue(clave: string, fallback: string): Promise<string> {
     try {
-        const supabase = createSupabaseServer()
+        const { createSupabaseAdmin } = await import('@/lib/supabase/server')
+        const supabase = createSupabaseAdmin()
         const { data, error } = await (supabase.from('configuracion_sitio') as any)
             .select('valor')
             .eq('clave', clave)
@@ -94,7 +95,8 @@ export async function fetchContactoInfo(): Promise<ContactoInfo> {
 /** Obtiene estadísticas desde configuracion_sitio, con fallback estático */
 export async function fetchEstadisticas(): Promise<Estadistica[]> {
     try {
-        const supabase = createSupabaseServer()
+        const { createSupabaseAdmin } = await import('@/lib/supabase/server')
+        const supabase = createSupabaseAdmin()
         const { data, error } = await (supabase.from('configuracion_sitio') as any)
             .select('valor')
             .eq('clave', 'estadisticas')

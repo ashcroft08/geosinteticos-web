@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { useAdminUI } from '@/contexts/AdminUIContext'
-import { Plus, Pencil, Trash2, Search, AlertCircle, Loader2, Check, X, Eye, EyeOff, PlusCircle, Image as ImageIcon } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, AlertCircle, Loader2, Check, X, Eye, EyeOff, PlusCircle, Image as ImageIcon, LayoutGrid, List } from 'lucide-react'
 import Image from 'next/image'
 import ProjectSlotUploader from '@/components/admin/ProjectSlotUploader'
 
@@ -48,6 +48,8 @@ export default function AdminProyectosPage() {
     // Imágenes JSON Slots
     const [imagenes, setImagenes] = useState<Record<string, string | null>>({})
 
+    const [selectedIds, setSelectedIds] = useState<string[]>([])
+
     const loadData = useCallback(async () => {
         try {
             const supabase = createSupabaseClient()
@@ -66,6 +68,7 @@ export default function AdminProyectosPage() {
 
                 const rows = (fallbackData || []) as ProyectoRow[]
                 setProyectos(rows)
+                setSelectedIds([])
 
                 if (editingId) {
                     const current = rows.find(p => p.id === editingId)
@@ -76,6 +79,7 @@ export default function AdminProyectosPage() {
 
             const rows = (data || []) as ProyectoRow[]
             setProyectos(rows)
+            setSelectedIds([])
 
             // Actualizar imágenes si estamos editando
             if (editingId) {
@@ -202,8 +206,44 @@ export default function AdminProyectosPage() {
         await loadData()
     }
 
+    const deleteSelectedProjects = async () => {
+        if (selectedIds.length === 0) return
+        
+        const confirmed = await confirmAction(`¿Estás seguro de eliminar los ${selectedIds.length} proyectos seleccionados?`)
+        if (!confirmed) return
+
+        const supabase = createSupabaseClient()
+        const { error } = await (supabase.from('proyectos') as any).delete().in('id', selectedIds)
+        
+        if (error) {
+            showToast('Error al eliminar los proyectos', 'error')
+        } else {
+            setProyectos(proyectos.filter(p => !selectedIds.includes(p.id)))
+            setSelectedIds([])
+            showToast(`${selectedIds.length} proyectos eliminados`, 'success')
+        }
+    }
+
+    const toggleSelectAll = () => {
+        if (selectedIds.length === filtered.length) {
+            setSelectedIds([])
+        } else {
+            setSelectedIds(filtered.map(p => p.id))
+        }
+    }
+
+    const toggleSelect = (id: string) => {
+        if (selectedIds.includes(id)) {
+            setSelectedIds(selectedIds.filter(selectedId => selectedId !== id))
+        } else {
+            setSelectedIds([...selectedIds, id])
+        }
+    }
+
     // Eliminamos las viejas funciones de borrar y actualizar imágenes anidadas ya que
     // usarán ProjectSlotUploader.tsx que llama a la nueva API /api/upload-slot.
+
+    const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
 
     const filtered = proyectos.filter(p => p.titulo.toLowerCase().includes(searchTerm.toLowerCase()))
 
@@ -214,16 +254,32 @@ export default function AdminProyectosPage() {
     return (
         <div className="space-y-6">
             {/* Toolbar */}
-            <div className="flex flex-wrap items-center gap-3">
-                <div className="relative flex-1 min-w-[200px]">
+            <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                <div className="relative w-full md:w-96">
                     <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input type="text" placeholder="Buscar proyectos..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent text-sm" />
+                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent text-sm focus:outline-none" />
                 </div>
-                <button onClick={() => { resetForm(); setShowForm(true) }}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-accent text-white font-semibold rounded-xl hover:bg-accent-dark transition-all">
-                    <Plus size={18} /> Nuevo Proyecto
-                </button>
+                
+                <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+                    <div className="flex bg-gray-100 p-1 rounded-lg shrink-0">
+                        <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-accent' : 'text-gray-500 hover:text-gray-700'}`} title="Vista de lista"><List size={18} /></button>
+                        <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-accent' : 'text-gray-500 hover:text-gray-700'}`} title="Vista de cuadrícula"><LayoutGrid size={18} /></button>
+                    </div>
+
+                    {selectedIds.length > 0 && (
+                        <button 
+                            onClick={deleteSelectedProjects}
+                            className="px-4 py-2 bg-red-50 text-red-600 font-semibold text-sm rounded-lg hover:bg-red-100 transition-colors border border-red-100 shrink-0"
+                        >
+                            Eliminar ({selectedIds.length})
+                        </button>
+                    )}
+                    <button onClick={() => { resetForm(); setShowForm(true) }}
+                        className="flex items-center gap-2 px-5 py-2 bg-accent text-white font-semibold text-sm rounded-lg hover:bg-accent-dark transition-all shrink-0">
+                        <Plus size={18} /> Nuevo Proyecto
+                    </button>
+                </div>
             </div>
 
             {/* Form */}
@@ -391,69 +447,133 @@ export default function AdminProyectosPage() {
                 </div>
             )}
 
-            {/* Table */}
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="bg-surface border-b border-gray-200">
-                                <th className="text-left px-5 py-3 font-semibold text-primary">Proyecto</th>
-                                <th className="text-left px-5 py-3 font-semibold text-primary hidden md:table-cell">Tipo</th>
-                                <th className="text-left px-5 py-3 font-semibold text-primary hidden lg:table-cell">Ubicación</th>
-                                <th className="text-center px-5 py-3 font-semibold text-primary">Estado</th>
-                                <th className="text-right px-5 py-3 font-semibold text-primary">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filtered.map((project) => {
-                                const mainImage = project.imagenes_estructuradas?.general
-                                return (
-                                    <tr key={project.id} className="border-b border-gray-100 hover:bg-surface/50">
-                                        <td className="px-5 py-4">
-                                            <div className="flex items-center gap-3">
-                                                {mainImage && (
-                                                    <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                                                        <Image src={mainImage} alt={project.titulo} fill className="object-cover" />
+            {/* Vistas (Lista / Cuadrícula) */}
+            {viewMode === 'list' ? (
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="bg-surface border-b border-gray-200">
+                                    <th className="text-left px-5 py-3 w-12">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                                            onChange={toggleSelectAll}
+                                            className="w-4 h-4 text-accent border-gray-300 rounded focus:ring-accent cursor-pointer"
+                                        />
+                                    </th>
+                                    <th className="text-left px-5 py-3 font-semibold text-primary">Proyecto</th>
+                                    <th className="text-left px-5 py-3 font-semibold text-primary hidden md:table-cell">Tipo</th>
+                                    <th className="text-left px-5 py-3 font-semibold text-primary hidden lg:table-cell">Ubicación</th>
+                                    <th className="text-center px-5 py-3 font-semibold text-primary">Estado</th>
+                                    <th className="text-right px-5 py-3 font-semibold text-primary">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filtered.map((project) => {
+                                    const mainImage = project.imagenes_estructuradas?.general
+                                    return (
+                                        <tr key={project.id} className={`border-b border-gray-100 transition-colors ${selectedIds.includes(project.id) ? 'bg-accent/5' : 'hover:bg-surface/50'}`}>
+                                            <td className="px-5 py-4">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={selectedIds.includes(project.id)}
+                                                    onChange={() => toggleSelect(project.id)}
+                                                    className="w-4 h-4 text-accent border-gray-300 rounded focus:ring-accent cursor-pointer"
+                                                />
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    {mainImage && (
+                                                        <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
+                                                            <Image src={mainImage} alt={project.titulo} fill className="object-cover" />
+                                                        </div>
+                                                    )}
+                                                    <div className="min-w-0">
+                                                        <p className="font-medium text-primary truncate">{project.titulo}</p>
+                                                        <p className="text-text-muted text-xs truncate">{project.cliente || '—'}</p>
                                                     </div>
-                                                )}
-                                                <div className="min-w-0">
-                                                    <p className="font-medium text-primary truncate">{project.titulo}</p>
-                                                    <p className="text-text-muted text-xs truncate">{project.cliente || '—'}</p>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-5 py-4 hidden md:table-cell">
-                                            <span className="px-3 py-1 bg-surface text-text-muted text-xs rounded-full">{project.tipo_obra || '—'}</span>
-                                        </td>
-                                        <td className="px-5 py-4 hidden lg:table-cell text-text-muted">
-                                            {project.ciudad ? `${project.ciudad}, ${project.region}` : '—'}
-                                        </td>
-                                        <td className="px-5 py-4 text-center">
-                                            <button onClick={() => togglePublicado(project.id, project.publicado)}
-                                                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all ${project.publicado ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                                                {project.publicado ? <><Eye size={12} /> Publicado</> : <><EyeOff size={12} /> Borrador</>}
-                                            </button>
-                                        </td>
-                                        <td className="px-5 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button onClick={() => handleEdit(project.id)} className="p-2 hover:bg-blue-50 text-blue-500 rounded-lg" title="Editar">
-                                                    <Pencil size={16} />
+                                            </td>
+                                            <td className="px-5 py-4 hidden md:table-cell">
+                                                <span className="px-3 py-1 bg-surface text-text-muted text-xs rounded-full">{project.tipo_obra || '—'}</span>
+                                            </td>
+                                            <td className="px-5 py-4 hidden lg:table-cell text-text-muted">
+                                                {project.ciudad ? `${project.ciudad}, ${project.region}` : '—'}
+                                            </td>
+                                            <td className="px-5 py-4 text-center">
+                                                <button onClick={() => togglePublicado(project.id, project.publicado)}
+                                                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all ${project.publicado ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                                                    {project.publicado ? <><Eye size={12} /> Publicado</> : <><EyeOff size={12} /> Borrador</>}
                                                 </button>
-                                                <button onClick={() => handleDelete(project.id)} className="p-2 hover:bg-red-50 text-red-500 rounded-lg" title="Eliminar">
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )
-                            })}
-                            {filtered.length === 0 && (
-                                <tr><td colSpan={5} className="px-5 py-12 text-center text-text-muted">No se encontraron proyectos</td></tr>
-                            )}
-                        </tbody>
-                    </table>
+                                            </td>
+                                            <td className="px-5 py-4 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button onClick={() => handleEdit(project.id)} className="p-2 hover:bg-blue-50 text-blue-500 rounded-lg" title="Editar">
+                                                        <Pencil size={16} />
+                                                    </button>
+                                                    <button onClick={() => handleDelete(project.id)} className="p-2 hover:bg-red-50 text-red-500 rounded-lg" title="Eliminar">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
+                                {filtered.length === 0 && (
+                                    <tr><td colSpan={6} className="px-5 py-12 text-center text-text-muted">No se encontraron proyectos</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {filtered.map(project => {
+                        const mainImage = project.imagenes_estructuradas?.general
+                        return (
+                            <div key={project.id} className={`bg-white rounded-2xl border ${selectedIds.includes(project.id) ? 'border-accent bg-accent/5 shadow-md' : 'border-gray-100'} overflow-hidden relative group transition-all hover:shadow-lg`}>
+                                <div className="absolute top-3 left-3 z-10 bg-white/80 backdrop-blur-sm rounded-md p-1">
+                                    <input type="checkbox" checked={selectedIds.includes(project.id)} onChange={() => toggleSelect(project.id)} className="w-5 h-5 text-accent border-gray-300 rounded focus:ring-accent cursor-pointer shadow-sm block" />
+                                </div>
+                                <div className="absolute top-3 right-3 z-10 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => handleEdit(project.id)} className="p-2 bg-white text-blue-500 rounded-lg shadow-sm hover:bg-blue-50 border border-gray-100" title="Editar"><Pencil size={16}/></button>
+                                    <button onClick={() => handleDelete(project.id)} className="p-2 bg-white text-red-500 rounded-lg shadow-sm hover:bg-red-50 border border-gray-100" title="Eliminar"><Trash2 size={16}/></button>
+                                </div>
+                                <div className="aspect-video bg-gray-50 relative border-b border-gray-100">
+                                    {mainImage ? (
+                                        <Image src={mainImage} alt={project.titulo} fill className="object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-gray-300"><ImageIcon size={48} strokeWidth={1} /></div>
+                                    )}
+                                </div>
+                                <div className="p-5">
+                                    <div className="flex justify-between items-start gap-2 mb-2">
+                                        <p className="font-bold text-primary truncate flex-1" title={project.titulo}>{project.titulo}</p>
+                                        <button onClick={() => togglePublicado(project.id, project.publicado)} className="shrink-0 group/btn">
+                                            {project.publicado ? (
+                                                <Eye size={18} className="text-green-600 hover:text-green-700" title="Publicado" />
+                                            ) : (
+                                                <EyeOff size={18} className="text-gray-400 hover:text-gray-600" title="Borrador" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-col gap-1 text-xs text-text-muted">
+                                        <span><span className="font-medium text-gray-500">Cliente:</span> {project.cliente || '—'}</span>
+                                        <span><span className="font-medium text-gray-500">Tipo:</span> {project.tipo_obra || '—'}</span>
+                                        <span className="truncate"><span className="font-medium text-gray-500">Ubicación:</span> {project.ciudad ? `${project.ciudad}, ${project.region}` : '—'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    })}
+                    {filtered.length === 0 && (
+                        <div className="col-span-full py-12 text-center text-text-muted bg-white rounded-2xl border border-gray-100">
+                            No se encontraron proyectos
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     )
 }

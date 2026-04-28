@@ -25,6 +25,7 @@ export default async function HomePage() {
                         alt="Proyecto industrial"
                         fill
                         className="object-cover"
+                        sizes="100vw"
                         priority
                     />
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/80 to-primary/40" />
@@ -151,6 +152,7 @@ export default async function HomePage() {
                                     src={project.imagenes_estructuradas?.general || project.imagenes_estructuradas?.antes || project.imagenes_estructuradas?.durante || '/placeholder.svg'}
                                     alt={project.titulo}
                                     fill
+                                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                     className="object-cover group-hover:scale-110 transition-transform duration-500"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />

@@ -43,6 +43,7 @@ export default function ProductView({ producto, catalogoUrl }: ProductViewProps)
                                 src={imagenPrincipal?.url_publica || '/placeholder.svg'}
                                 alt={imagenPrincipal?.alt || producto.nombre}
                                 fill
+                                sizes="(max-width: 1024px) 100vw, 50vw"
                                 className="object-cover transition-transform duration-500 group-hover:scale-105"
                                 priority
                             />
@@ -63,6 +64,7 @@ export default function ProductView({ producto, catalogoUrl }: ProductViewProps)
                                             src={img.url_publica}
                                             alt={img.alt || ''}
                                             fill
+                                            sizes="15vw"
                                             className="object-cover"
                                         />
                                     </div>

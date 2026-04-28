@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { useAdminUI } from '@/contexts/AdminUIContext'
-import { Search, AlertCircle, X, Clock, Mail, Phone, Building2, FileText } from 'lucide-react'
+import { Search, AlertCircle, Clock, Mail, Phone, Building2, FileText, Download, Loader2 } from 'lucide-react'
 
 interface LeadRow {
     id: string
@@ -36,7 +36,10 @@ export default function AdminLeadsPage() {
     const [searchTerm, setSearchTerm] = useState('')
     const [filterEstado, setFilterEstado] = useState<string>('todos')
     const [expandedId, setExpandedId] = useState<string | null>(null)
+    const [generatingPdf, setGeneratingPdf] = useState<string | null>(null)
     const { showToast, confirmAction } = useAdminUI()
+
+    const [selectedIds, setSelectedIds] = useState<string[]>([])
 
     const loadData = useCallback(async () => {
         try {
@@ -45,6 +48,7 @@ export default function AdminLeadsPage() {
                 .select('*')
                 .order('created_at', { ascending: false })
             setLeads((data || []) as LeadRow[])
+            setSelectedIds([]) // Resetear selección al recargar
         } catch {
             showToast('Error al cargar los leads', 'error')
         } finally {
@@ -86,7 +90,57 @@ export default function AdminLeadsPage() {
             showToast('Error al eliminar lead', 'error')
         } else {
             setLeads(leads.filter(l => l.id !== id))
+            setSelectedIds(selectedIds.filter(selectedId => selectedId !== id))
             showToast('Lead eliminado', 'success')
+        }
+    }
+
+    const deleteSelectedLeads = async () => {
+        if (selectedIds.length === 0) return
+        
+        const confirmed = await confirmAction(`¿Estás seguro de eliminar los ${selectedIds.length} leads seleccionados?`)
+        if (!confirmed) return
+
+        const supabase = createSupabaseClient()
+        const { error } = await (supabase.from('leads') as any).delete().in('id', selectedIds)
+        
+        if (error) {
+            showToast('Error al eliminar los leads', 'error')
+        } else {
+            setLeads(leads.filter(l => !selectedIds.includes(l.id)))
+            setSelectedIds([])
+            showToast(`${selectedIds.length} leads eliminados`, 'success')
+        }
+    }
+
+    const toggleSelectAll = () => {
+        if (selectedIds.length === filtered.length) {
+            setSelectedIds([])
+        } else {
+            setSelectedIds(filtered.map(l => l.id))
+        }
+    }
+
+    const toggleSelect = (id: string) => {
+        if (selectedIds.includes(id)) {
+            setSelectedIds(selectedIds.filter(selectedId => selectedId !== id))
+        } else {
+            setSelectedIds([...selectedIds, id])
+        }
+    }
+
+    /** Genera y descarga el PDF de Ficha de Cotización para un lead */
+    const handleDownloadPDF = async (lead: LeadRow) => {
+        setGeneratingPdf(lead.id)
+        try {
+            const { generateLeadPDF } = await import('@/lib/generate-lead-pdf')
+            await generateLeadPDF(lead)
+            showToast('PDF generado correctamente', 'success')
+        } catch (err) {
+            console.error('Error generando PDF:', err)
+            showToast('Error al generar el PDF', 'error')
+        } finally {
+            setGeneratingPdf(null)
         }
     }
 
@@ -123,25 +177,59 @@ export default function AdminLeadsPage() {
                 ))}
             </div>
 
-            {/* Search */}
-            <div className="relative">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input type="text" placeholder="Buscar por nombre o email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent text-sm" />
+            {/* Acciones: Buscador y Eliminación Masiva */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                <div className="relative w-full sm:w-96">
+                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input type="text" placeholder="Buscar por nombre o email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent text-sm" />
+                </div>
+                
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                    <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                            onChange={toggleSelectAll}
+                            className="w-4 h-4 text-accent border-gray-300 rounded focus:ring-accent"
+                        />
+                        Seleccionar todos
+                    </label>
+                    
+                    {selectedIds.length > 0 && (
+                        <button 
+                            onClick={deleteSelectedLeads}
+                            className="px-4 py-2 bg-red-50 text-red-600 font-semibold text-sm rounded-lg hover:bg-red-100 transition-colors border border-red-100"
+                        >
+                            Eliminar ({selectedIds.length})
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Leads List */}
             <div className="space-y-3">
                 {filtered.map((lead) => (
-                    <div key={lead.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-sm transition-all">
+                    <div key={lead.id} className={`bg-white rounded-2xl border transition-all overflow-hidden ${selectedIds.includes(lead.id) ? 'border-accent shadow-md' : 'border-gray-100 hover:shadow-sm'}`}>
                         {/* Header */}
                         <div
                             className="px-6 py-4 flex items-center gap-4 cursor-pointer"
                             onClick={() => setExpandedId(expandedId === lead.id ? null : lead.id)}
                         >
+                            <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                                <input 
+                                    type="checkbox" 
+                                    checked={selectedIds.includes(lead.id)}
+                                    onChange={() => toggleSelect(lead.id)}
+                                    className="w-4 h-4 text-accent border-gray-300 rounded focus:ring-accent cursor-pointer"
+                                />
+                            </div>
+                            
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-3 mb-1">
-                                    <p className="font-semibold text-primary truncate">{lead.nombre}</p>
+                                    <p className={`font-semibold truncate ${selectedIds.includes(lead.id) ? 'text-accent' : 'text-primary'}`}>
+                                        {lead.nombre}
+                                    </p>
                                     {lead.empresa && (
                                         <span className="hidden sm:inline-flex items-center gap-1 text-text-muted text-xs">
                                             <Building2 size={12} /> {lead.empresa}
@@ -200,7 +288,20 @@ export default function AdminLeadsPage() {
                                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none"
                                     />
                                 </div>
-                                <div className="flex justify-end">
+                                <div className="flex items-center justify-between">
+                                    <button
+                                        onClick={() => handleDownloadPDF(lead)}
+                                        disabled={generatingPdf === lead.id}
+                                        className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white text-sm font-semibold rounded-xl hover:bg-accent-dark transition-all disabled:opacity-60"
+                                    >
+                                        {generatingPdf === lead.id ? (
+                                            <Loader2 size={16} className="animate-spin" />
+                                        ) : (
+                                            <Download size={16} />
+                                        )}
+                                        {generatingPdf === lead.id ? 'Generando...' : 'Exportar Ficha PDF'}
+                                    </button>
+
                                     <button onClick={() => deleteLead(lead.id)}
                                         className="text-xs text-red-500 hover:text-red-700 hover:underline">
                                         Eliminar lead
@@ -220,3 +321,4 @@ export default function AdminLeadsPage() {
         </div>
     )
 }
+

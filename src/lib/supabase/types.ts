@@ -197,6 +197,21 @@ export interface Database {
                 }
                 Update: Partial<Database['public']['Tables']['configuracion_sitio']['Insert']>
             }
+            page_views: {
+                Row: {
+                    id: string
+                    slug_pagina: string
+                    tipo_pagina: string
+                    dispositivo: string
+                    referrer: string | null
+                    created_at: string
+                }
+                Insert: Omit<Database['public']['Tables']['page_views']['Row'], 'id' | 'created_at'> & {
+                    id?: string
+                    created_at?: string
+                }
+                Update: Partial<Database['public']['Tables']['page_views']['Insert']>
+            }
             profiles: {
                 Row: {
                     id: string
@@ -227,6 +242,7 @@ export type ProyectoImagen = Database['public']['Tables']['proyecto_imagenes']['
 export type Lead = Database['public']['Tables']['leads']['Row']
 export type Certificacion = Database['public']['Tables']['certificaciones']['Row']
 export type ConfiguracionSitio = Database['public']['Tables']['configuracion_sitio']['Row']
+export type PageView = Database['public']['Tables']['page_views']['Row']
 export type Profile = Database['public']['Tables']['profiles']['Row']
 
 /** Producto con relaciones anidadas */

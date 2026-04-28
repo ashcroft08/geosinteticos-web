@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabase/server'
 import { v4 as uuidv4 } from 'uuid'
+import { optimizeImage } from '@/lib/image-optimizer'
 
 export async function POST(request: Request) {
     try {
@@ -18,17 +19,27 @@ export async function POST(request: Request) {
 
         // Determinar bucket y carpeta según el tipo
         let bucketName = 'proyectos-imagenes'
-        let folderPath = `configuracion/${clave}_${uuidv4()}.${file.name.split('.').pop()}`
+        let folderPath: string
+        let uploadContent: Buffer | File
 
         if (isPdf) {
+            // Los PDFs no se optimizan — se suben tal cual
             bucketName = 'productos-pdfs'
-            folderPath = `catalogos/${clave}_${Date.now()}.pdf` // Forzamos un nombramiento limpio
+            folderPath = `catalogos/${clave}_${Date.now()}.pdf`
+            uploadContent = file
+        } else {
+            // Optimizar imagen: redimensionar a max 1920px y convertir a WebP 80%
+            uploadContent = await optimizeImage(file)
+            folderPath = `configuracion/${clave}_${uuidv4()}.webp`
         }
 
         // 1. Subir archivo a Storage
         const { error: uploadError } = await supabase.storage
             .from(bucketName)
-            .upload(folderPath, file, { upsert: true })
+            .upload(folderPath, uploadContent, {
+                contentType: isPdf ? 'application/pdf' : 'image/webp',
+                upsert: true,
+            })
 
         if (uploadError) {
             console.error('Upload error:', uploadError)

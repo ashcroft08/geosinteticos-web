@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabase/server'
 import { v4 as uuidv4 } from 'uuid'
+import { optimizeImage } from '@/lib/image-optimizer'
 
 export async function POST(request: Request) {
     try {
@@ -14,8 +15,10 @@ export async function POST(request: Request) {
         }
 
         const supabase = createSupabaseAdmin()
-        const fileExt = file.name.split('.').pop()
-        const fileName = `${uuidv4()}.${fileExt}`
+
+        // Optimizar imagen: redimensionar a max 1920px y convertir a WebP 80%
+        const optimizedBuffer = await optimizeImage(file)
+        const fileName = `${uuidv4()}.webp`
 
         // Determinar bucket y carpeta según tipo
         let bucketName = ''
@@ -37,10 +40,12 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 })
         }
 
-        // 1. Subir archivo a Storage
+        // 1. Subir archivo optimizado a Storage
         const { error: uploadError } = await supabase.storage
             .from(bucketName)
-            .upload(folderPath, file)
+            .upload(folderPath, optimizedBuffer, {
+                contentType: 'image/webp',
+            })
 
         if (uploadError) {
             console.error('Upload error:', uploadError)

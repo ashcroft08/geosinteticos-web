@@ -116,6 +116,7 @@ export default function ProductCatalog({ categorias, productos }: ProductCatalog
                                             src={producto.imagenes.find(i => i.es_principal)?.url_publica || producto.imagenes[0]?.url_publica || '/placeholder.svg'}
                                             alt={producto.nombre}
                                             fill
+                                            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
                                             className="object-cover group-hover:scale-110 transition-transform duration-500"
                                         />
                                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />

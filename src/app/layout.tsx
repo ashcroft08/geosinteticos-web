@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const inter = Inter({
@@ -8,6 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://geosinteticos.com.ec"),
   title: "G&G | Geosintéticos y Geomembranas en Ecuador",
   description:
     "Expertos en instalación y asesoría de geosintéticos para minería, agricultura y construcción en todo el Ecuador",
@@ -45,8 +47,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
-      <body className={`${inter.variable} antialiased`}>{children}</body>
+    <html lang="es" suppressHydrationWarning>
+      <body className={`${inter.variable} antialiased`}>
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
+

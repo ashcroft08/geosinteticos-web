@@ -6,9 +6,10 @@ interface EmailData {
     to: string[]
     subject: string
     html: string
+    attachments?: { filename: string; content: string | Buffer; contentType?: string }[]
 }
 
-export async function sendEmail({ to, subject, html }: EmailData) {
+export async function sendEmail({ to, subject, html, attachments }: EmailData) {
     // Si no hay destinatarios, no enviar
     if (!to || to.length === 0) {
         console.warn('⚠️ No hay destinatarios para el correo')
@@ -38,6 +39,7 @@ export async function sendEmail({ to, subject, html }: EmailData) {
             to: to.join(', '),
             subject,
             html,
+            attachments,
         })
         console.log('✅ Correo enviado:', info.messageId)
         return info
@@ -58,5 +60,5 @@ export async function fetchNotificationEmails(): Promise<string[]> {
     }
 
     // Fallback inicial a los correos solicitados por el usuario
-    return ['alexis298930@gmail.com']
+    return ['alexis298930@gmail.com', 'daniela92medina@hotmail.com']
 }

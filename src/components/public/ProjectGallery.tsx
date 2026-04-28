@@ -66,6 +66,7 @@ export default function ProjectGallery({ images }: ProjectGalleryProps) {
                             src={img.url_publica || '/placeholder.svg'}
                             alt={img.descripcion || `Imagen ${i + 1} del proyecto`}
                             fill
+                            sizes="(max-width: 640px) 100vw, 50vw"
                             className="object-cover group-hover:scale-110 transition-transform duration-700"
                         />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
@@ -117,6 +118,7 @@ export default function ProjectGallery({ images }: ProjectGalleryProps) {
                                 src={images[currentIndex].url_publica || '/placeholder.svg'}
                                 alt={images[currentIndex].descripcion || `Imagen ${currentIndex + 1} del proyecto`}
                                 fill
+                                sizes="100vw"
                                 className="object-contain"
                                 quality={100}
                                 priority

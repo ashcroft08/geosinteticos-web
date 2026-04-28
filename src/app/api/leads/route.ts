@@ -52,16 +52,23 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: 'Error al guardar el lead' }, { status: 500 })
             }
 
-            // Enviar notificación por correo
+            // Enviar notificaciones (correo + WhatsApp) en paralelo
+            // Ninguna debe bloquear la respuesta al usuario
             try {
-                // Importación dinámica para evitar ciclos si fuera el caso, o simple import arriba
-                const { sendEmail, fetchNotificationEmails } = await import('@/lib/email')
+                const [{ sendEmail, fetchNotificationEmails }, { sendWhatsAppNotification }] = await Promise.all([
+                    import('@/lib/email'),
+                    import('@/lib/whatsapp-notification'),
+                ])
+
                 const emails = await fetchNotificationEmails()
 
-                await sendEmail({
-                    to: emails,
-                    subject: `Nuevo Lead: ${parsed.data.nombre} - ${parsed.data.empresa || 'Particular'}`,
-                    html: `
+                // Disparar ambas notificaciones en paralelo
+                await Promise.allSettled([
+                    // 1. Notificación por correo electrónico
+                    sendEmail({
+                        to: emails,
+                        subject: `Nuevo Lead: ${parsed.data.nombre} - ${parsed.data.empresa || 'Particular'}`,
+                        html: `
                         <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
                             <div style="background-color: #0f766e; padding: 20px; text-align: center;">
                                 <h1 style="color: white; margin: 0; font-size: 24px;">Nuevo Lead Recibido</h1>
@@ -82,10 +89,22 @@ export async function POST(request: NextRequest) {
                             </div>
                         </div>
                     `
-                })
-            } catch (mailError) {
-                console.error('Error enviando notificación:', mailError)
-                // No fallar el request si falla el correo, pero loguearlo
+                    }),
+
+                    // 2. Notificación por WhatsApp al administrador
+                    sendWhatsAppNotification({
+                        nombre: parsed.data.nombre,
+                        empresa: parsed.data.empresa || null,
+                        email: parsed.data.email,
+                        telefono: parsed.data.telefono,
+                        tipo_proyecto: parsed.data.tipo_proyecto || null,
+                        producto_nombre: parsed.data.producto_nombre || null,
+                        mensaje: parsed.data.mensaje || null,
+                    }),
+                ])
+            } catch (notifError) {
+                console.error('Error enviando notificaciones:', notifError)
+                // No fallar el request si falla alguna notificación
             }
 
         } else {

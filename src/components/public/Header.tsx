@@ -3,8 +3,26 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
-import { Phone, Mail, Facebook, Instagram, Linkedin, Menu, X } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { Phone, Mail, Facebook, Menu, X, Search, Loader2, Package, FolderKanban } from 'lucide-react'
+
+/** Ícono SVG de TikTok – lucide-react no incluye este ícono */
+function TikTokIcon({ size = 16 }: { size?: number }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="currentColor"
+        >
+            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 0 0-.79-.05A6.34 6.34 0 0 0 3.15 15a6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V9.17a8.16 8.16 0 0 0 4.76 1.52v-3.4a4.85 4.85 0 0 1-1-.6z" />
+        </svg>
+    )
+}
+
+const FACEBOOK_URL = 'https://www.facebook.com/instalacion.geomembrana.79?mibextid=rS40aB7S9Ucbxw6v'
+const TIKTOK_URL = 'https://www.tiktok.com/@geomembrana.geosi5?_r=1&_t=ZS-95ZZE2mUATK'
 
 const NAV_LINKS = [
     { href: '/', label: 'Inicio' },
@@ -20,14 +38,74 @@ interface HeaderContacto {
     email: string
 }
 
+interface SearchResult {
+    productos: Array<{ slug: string; nombre: string; descripcion: string; imagen: string | null }>
+    proyectos: Array<{ slug: string; titulo: string; tipo_obra: string; ubicacion: string; imagen: string | null }>
+}
+
+/** Debounce helper — evita disparar la búsqueda en cada tecla */
+function useDebounce() {
+    const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(null)
+
+    return (callback: () => void, delay: number) => {
+        if (timer) clearTimeout(timer)
+        setTimer(setTimeout(callback, delay))
+    }
+}
+
 export default function Header({ contacto }: { contacto: HeaderContacto }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+    const [searchOpen, setSearchOpen] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [searchResults, setSearchResults] = useState<SearchResult | null>(null)
+    const [searchLoading, setSearchLoading] = useState(false)
     const pathname = usePathname()
+    const router = useRouter()
+    const debounce = useDebounce()
 
     const isActive = (href: string) => {
         if (href === '/') return pathname === '/'
         return pathname.startsWith(href)
     }
+
+    const handleSearch = (query: string) => {
+        setSearchQuery(query)
+
+        if (query.trim().length < 2) {
+            setSearchResults(null)
+            setSearchLoading(false)
+            return
+        }
+
+        setSearchLoading(true)
+        debounce(async () => {
+            try {
+                const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`)
+                if (res.ok) {
+                    const data = await res.json()
+                    setSearchResults(data)
+                }
+            } catch {
+                setSearchResults(null)
+            } finally {
+                setSearchLoading(false)
+            }
+        }, 300)
+    }
+
+    const closeSearch = () => {
+        setSearchOpen(false)
+        setSearchQuery('')
+        setSearchResults(null)
+    }
+
+    const navigateTo = (href: string) => {
+        closeSearch()
+        setMobileMenuOpen(false)
+        router.push(href)
+    }
+
+    const totalResults = (searchResults?.productos.length || 0) + (searchResults?.proyectos.length || 0)
 
     return (
         <header className="sticky top-0 z-50 w-full">
@@ -45,9 +123,8 @@ export default function Header({ contacto }: { contacto: HeaderContacto }) {
                         </a>
                     </div>
                     <div className="flex items-center gap-4">
-                        <a href="#" aria-label="Facebook" className="hover:text-accent transition-colors"><Facebook size={16} /></a>
-                        <a href="#" aria-label="Instagram" className="hover:text-accent transition-colors"><Instagram size={16} /></a>
-                        <a href="#" aria-label="LinkedIn" className="hover:text-accent transition-colors"><Linkedin size={16} /></a>
+                        <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="hover:text-accent transition-colors"><Facebook size={16} /></a>
+                        <a href={TIKTOK_URL} target="_blank" rel="noopener noreferrer" aria-label="TikTok" className="hover:text-accent transition-colors"><TikTokIcon size={16} /></a>
                     </div>
                 </div>
             </div>
@@ -86,8 +163,17 @@ export default function Header({ contacto }: { contacto: HeaderContacto }) {
                         ))}
                     </nav>
 
-                    {/* CTA + Mobile Toggle */}
-                    <div className="flex items-center gap-3">
+                    {/* Search + CTA + Mobile Toggle */}
+                    <div className="flex items-center gap-2">
+                        {/* Search Toggle */}
+                        <button
+                            onClick={() => setSearchOpen(!searchOpen)}
+                            className="p-2.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-primary"
+                            aria-label="Buscar"
+                        >
+                            <Search size={20} />
+                        </button>
+
                         <Link
                             href="/contacto"
                             className="hidden md:inline-flex items-center px-5 py-2.5 bg-accent text-white font-semibold rounded-lg hover:bg-accent-dark transition-all shadow-sm hover:shadow-md text-sm"
@@ -105,6 +191,148 @@ export default function Header({ contacto }: { contacto: HeaderContacto }) {
                 </div>
             </div>
 
+            {/* ===== SEARCH BAR EXPANDIBLE ===== */}
+            {searchOpen && (
+                <>
+                    {/* Overlay */}
+                    <div
+                        className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm"
+                        onClick={closeSearch}
+                    />
+                    {/* Search Panel */}
+                    <div className="absolute top-full left-0 w-full z-50 bg-white shadow-2xl border-b border-gray-200">
+                        <div className="max-w-3xl mx-auto px-4 py-4">
+                            {/* Input */}
+                            <div className="relative">
+                                <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    type="text"
+                                    autoFocus
+                                    value={searchQuery}
+                                    onChange={(e) => handleSearch(e.target.value)}
+                                    placeholder="Buscar productos, proyectos..."
+                                    className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-accent focus:border-accent focus:outline-none transition-all"
+                                />
+                                {searchLoading && (
+                                    <Loader2 size={20} className="absolute right-12 top-1/2 -translate-y-1/2 text-accent animate-spin" />
+                                )}
+                                <button
+                                    onClick={closeSearch}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            {/* Results */}
+                            {searchResults && searchQuery.length >= 2 && (
+                                <div className="mt-4 max-h-[60vh] overflow-y-auto">
+                                    {totalResults === 0 ? (
+                                        <div className="text-center py-8 text-gray-400">
+                                            <Search size={32} className="mx-auto mb-2" />
+                                            <p className="text-sm">No se encontraron resultados para &quot;{searchQuery}&quot;</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {/* Productos */}
+                                            {searchResults.productos.length > 0 && (
+                                                <div>
+                                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                                        <Package size={14} /> Productos
+                                                    </p>
+                                                    <div className="space-y-1">
+                                                        {searchResults.productos.map((p) => (
+                                                            <button
+                                                                key={p.slug}
+                                                                onClick={() => navigateTo(`/productos/${p.slug}`)}
+                                                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group"
+                                                            >
+                                                                <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0 relative">
+                                                                    {p.imagen ? (
+                                                                        <Image
+                                                                            src={p.imagen}
+                                                                            alt={p.nombre}
+                                                                            fill
+                                                                            sizes="48px"
+                                                                            className="object-cover"
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                                                            <Package size={20} />
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="font-semibold text-primary text-sm truncate group-hover:text-accent transition-colors">
+                                                                        {p.nombre}
+                                                                    </p>
+                                                                    <p className="text-xs text-gray-400 truncate">
+                                                                        {p.descripcion}
+                                                                    </p>
+                                                                </div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Proyectos */}
+                                            {searchResults.proyectos.length > 0 && (
+                                                <div>
+                                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                                        <FolderKanban size={14} /> Proyectos
+                                                    </p>
+                                                    <div className="space-y-1">
+                                                        {searchResults.proyectos.map((p) => (
+                                                            <button
+                                                                key={p.slug}
+                                                                onClick={() => navigateTo(`/proyectos/${p.slug}`)}
+                                                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group"
+                                                            >
+                                                                <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0 relative">
+                                                                    {p.imagen ? (
+                                                                        <Image
+                                                                            src={p.imagen}
+                                                                            alt={p.titulo}
+                                                                            fill
+                                                                            sizes="48px"
+                                                                            className="object-cover"
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                                                            <FolderKanban size={20} />
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="font-semibold text-primary text-sm truncate group-hover:text-accent transition-colors">
+                                                                        {p.titulo}
+                                                                    </p>
+                                                                    <p className="text-xs text-gray-400 truncate">
+                                                                        {p.tipo_obra}{p.ubicacion ? ` — ${p.ubicacion}` : ''}
+                                                                    </p>
+                                                                </div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Hint */}
+                            {searchQuery.length < 2 && (
+                                <p className="text-center text-xs text-gray-400 mt-3">
+                                    Escribe al menos 2 caracteres para buscar
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </>
+            )}
+
             {/* Mobile Menu */}
             {mobileMenuOpen && (
                 <>
@@ -119,6 +347,28 @@ export default function Header({ contacto }: { contacto: HeaderContacto }) {
                                 <X size={24} />
                             </button>
                         </div>
+
+                        {/* Mobile Search */}
+                        <div className="px-4 py-3 border-b">
+                            <div className="relative">
+                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar..."
+                                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-accent focus:outline-none"
+                                    onChange={(e) => {
+                                        const q = e.target.value
+                                        if (q.trim().length >= 2) {
+                                            setMobileMenuOpen(false)
+                                            setSearchOpen(true)
+                                            setSearchQuery(q)
+                                            handleSearch(q)
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+
                         <div className="flex flex-col p-4 gap-1 flex-1">
                             {NAV_LINKS.map((link) => (
                                 <Link

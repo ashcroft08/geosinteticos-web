@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabase/server'
 import { v4 as uuidv4 } from 'uuid'
+import { optimizeImage } from '@/lib/image-optimizer'
+
+/** Slots válidos para imágenes de proyecto — máximo 4 fotos */
+const VALID_SLOTS = ['general', 'antes', 'durante', 'despues'] as const
 
 export async function POST(request: Request) {
     try {
@@ -9,24 +13,28 @@ export async function POST(request: Request) {
         const slot = formData.get('slot') as string
         const proyectoId = formData.get('proyectoId') as string
 
-        const validSlots = ['general', 'antes', 'durante', 'finalizando', 'extra_1', 'extra_2']
-
-        if (!file || !slot || !proyectoId || !validSlots.includes(slot)) {
-            return NextResponse.json({ error: 'Faltan datos o slot inválido' }, { status: 400 })
+        if (!file || !slot || !proyectoId || !VALID_SLOTS.includes(slot as any)) {
+            return NextResponse.json(
+                { error: `Faltan datos o slot inválido. Slots permitidos: ${VALID_SLOTS.join(', ')}` },
+                { status: 400 }
+            )
         }
 
         const supabase = createSupabaseAdmin()
 
-        // Determinar extensión y crear nombre único
-        const fileExt = file.name.split('.').pop()
-        const fileName = `${slot}_${uuidv4()}.${fileExt}`
+        // Optimizar imagen: redimensionar a max 1920px y convertir a WebP 80%
+        const optimizedBuffer = await optimizeImage(file)
+        const fileName = `${slot}_${uuidv4()}.webp`
         const folderPath = `${proyectoId}/${fileName}`
         const bucketName = 'proyectos-imagenes'
 
         // 1. Subir a Storage
         const { error: uploadError } = await supabase.storage
             .from(bucketName)
-            .upload(folderPath, file, { upsert: true })
+            .upload(folderPath, optimizedBuffer, {
+                contentType: 'image/webp',
+                upsert: true,
+            })
 
         if (uploadError) {
             console.error('Upload error:', uploadError)
