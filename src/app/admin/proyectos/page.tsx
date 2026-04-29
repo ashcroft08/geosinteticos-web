@@ -550,11 +550,15 @@ export default function AdminProyectosPage() {
                                 <div className="p-5">
                                     <div className="flex justify-between items-start gap-2 mb-2">
                                         <p className="font-bold text-primary truncate flex-1" title={project.titulo}>{project.titulo}</p>
-                                        <button onClick={() => togglePublicado(project.id, project.publicado)} className="shrink-0 group/btn">
+                                        <button 
+                                            onClick={() => togglePublicado(project.id, project.publicado)} 
+                                            className="shrink-0 group/btn"
+                                            title={project.publicado ? "Publicado" : "Borrador"}
+                                        >
                                             {project.publicado ? (
-                                                <Eye size={18} className="text-green-600 hover:text-green-700" title="Publicado" />
+                                                <Eye size={18} className="text-green-600 hover:text-green-700" />
                                             ) : (
-                                                <EyeOff size={18} className="text-gray-400 hover:text-gray-600" title="Borrador" />
+                                                <EyeOff size={18} className="text-gray-400 hover:text-gray-600" />
                                             )}
                                         </button>
                                     </div>
